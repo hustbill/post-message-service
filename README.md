@@ -2,7 +2,8 @@
 Post message service,  upload media files ( doc, audio, video info) into Elasticsearch and MongoDB
 
 
-## Golang version
+## MongoDB
+
 
 ### Upload media files to server
 
