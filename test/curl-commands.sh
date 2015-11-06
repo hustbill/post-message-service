@@ -8,12 +8,25 @@ echo "Test case 4 Done "
 
 
 
- #Insert a new post  
- curl -XPOST -H 'Content-Type: application/json' -d '{"user-id": 101, "type": "text", "content": "Hello World!"}' http://127.0.0.1:3000/v1/posts 
-Result: {"id":"563aa288d1261946cb000001","type":"text","content":"Hello World!","user-id":101}
+  #Insert a new text passage post  
+ curl -XPOST -H 'Content-Type: application/json' -d '{"user-id": 101, "type": "text","active": true,  "text-message" : "Honey Roasted Peanuts" }' http://127.0.0.1:3000/v1/posts 
+ 
+   #upload a new image post  
+ curl -XPOST -H 'Content-Type: application/json' -d '{"user-id": 201, "type": "image","active": true,  "title" : "mylogo",  "comment" : "This is an image file" , "link" : "image=@/Users/huazhang/git/post-message-service/test/mylogo.jpg"}' http://127.0.0.1:3000/v1/posts 
+
+
+curl \
+  -F "user-id=201" \
+  -F "type=image" \
+  -F "comment=This is an image file" \
+  -F "image=@/Users/huazhang/git/post-message-service/test/mylogo.jpg" \
+  http://127.0.0.1:3000/v1/posts
+  
+
 
  #Query an existing post
-curl -H "Content-Type: application/json" -X GET -v http://127.0.0.1:3000/v1/posts/563aa288d1261946cb000001
+curl -H "Content-Type: application/json" -X GET -v http://127.0.0.1:3000/v1/posts/563cfa9dd12619398ed7c71c
+
 
 
  # Insert a new product 
