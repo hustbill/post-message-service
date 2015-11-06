@@ -2,13 +2,13 @@
 package main
 
 import (
-    //"encoding/json"
+    "encoding/json"
     "fmt"
     // "log"
     // "os"
     // "reflect"
 	"time"
-    "github.com/olivere/elastic"
+     "gopkg.in/olivere/elastic.v2"
     
 
 )
@@ -48,7 +48,9 @@ func main() {
   //   }
   //
   
-  client, err := elastic.NewClient()
+u := elastic.SetURL("http://192.168.1.59:9200")
+
+client, err := elastic.NewClient(u, elastic.SetSniff(false))
   	if err != nil {
   		// Handle error
          panic(err)
@@ -58,15 +60,15 @@ func main() {
     	//client.SetTracer(log.New(os.Stdout, "", 0))
 
     	// Ping the Elasticsearch server to get e.g. the version number
-    	info, code, err := client.Ping().Do()
-    	if err != nil {
-    		// Handle error
-    		panic(err)
-    	}
-    	fmt.Printf("Elasticsearch returned with code %d and version %s", code, info.Version.Number)
+        // info, code, err := client.Ping().Do()
+      //         if err != nil {
+      //             // Handle error
+      //             panic(err)
+      //         }
+    	//fmt.Printf("Elasticsearch returned with code %d and version %s", code, info.Version.Number)
 
     	// Getting the ES version number is quite common, so there's a shortcut
-    	esversion, err := client.ElasticsearchVersion("http://127.0.0.1:9200")
+    	esversion, err := client.ElasticsearchVersion("http://192.168.1.59:9200")
     	if err != nil {
     		// Handle error
     		panic(err)
@@ -127,64 +129,64 @@ func main() {
 
     }
 
-    // // Flush to make sure the documents got written.
- //    _, err = client.Flush().Index("products").Do()
- //    if err != nil {
- //        panic(err)
- //    }
- //
- //        // Search with a term query
- //        termQuery := elastic.NewTermQuery("name", "annual_fee")
- //        searchResult, err := client.Search().
- //            Index("products").   // search in index "products"
- //            Query(&termQuery).  // specify the query
- //            Sort("name", true). // sort by "name" field, ascending
- //            From(0).Size(10).   // take documents 0-9
- //            Pretty(true).       // pretty print request and response JSON
- //            Do()                // execute
- //        if err != nil {
- //            // Handle error
- //            panic(err)
- //        }
- //
- //        // searchResult is of type SearchResult and returns hits, suggestions,
- //        // and all kinds of other information from Elasticsearch.
- //        fmt.Printf("Query took %d milliseconds\n", searchResult.TookInMillis)
- //
- //
- //        // // TotalHits is another convenience function that works even when something goes wrong.
- //   //      fmt.Printf("Found a total of %d products\n", searchResult.TotalHits())
- //
- //
- //        // Here's how you iterate through results with full control over each step.
- //        if searchResult.Hits != nil {
- //            fmt.Printf("Found a total of %d products\n", searchResult.Hits.TotalHits)
- //
- //            // Iterate through results
- //            for _, hit := range searchResult.Hits.Hits {
- //                // hit.Index contains the name of the index
- //
- //                // Deserialize hit.Source into a Tweet (could also be just a map[string]interface{}).
- //                var p Product
- //                err := json.Unmarshal(*hit.Source, &p)
- //                if err != nil {
- //                    // Deserialization failed
- //                }
- //
- //                // Work with product
- //                fmt.Printf("The new product is %s: %s\n", p.Name, p.Description)
- //            }
- //        } else {
- //            // No hits
- //            fmt.Print("Found no products\n")
- //        }
+    // Flush to make sure the documents got written.
+    _, err = client.Flush().Index("products").Do()
+    if err != nil {
+        panic(err)
+    }
 
-    // // Delete the index again
- //    _, err = client.DeleteIndex("products").Do()
- //    if err != nil {
- //        // Handle error
- //        panic(err)
- //    }
+        // Search with a term query
+        termQuery := elastic.NewTermQuery("name", "annual_fee")
+        searchResult, err := client.Search().
+            Index("products").   // search in index "products"
+            Query(&termQuery).  // specify the query
+            Sort("name", true). // sort by "name" field, ascending
+            From(0).Size(10).   // take documents 0-9
+            Pretty(true).       // pretty print request and response JSON
+            Do()                // execute
+        if err != nil {
+            // Handle error
+            panic(err)
+        }
+
+        // searchResult is of type SearchResult and returns hits, suggestions,
+        // and all kinds of other information from Elasticsearch.
+        fmt.Printf("Query took %d milliseconds\n", searchResult.TookInMillis)
+
+
+        // // TotalHits is another convenience function that works even when something goes wrong.
+        fmt.Printf("Found a total of %d products\n", searchResult.TotalHits())
+
+
+        // Here's how you iterate through results with full control over each step.
+        if searchResult.Hits != nil {
+            fmt.Printf("Found a total of %d products\n", searchResult.Hits.TotalHits)
+
+            // Iterate through results
+            for _, hit := range searchResult.Hits.Hits {
+                // hit.Index contains the name of the index
+
+                // Deserialize hit.Source into a Tweet (could also be just a map[string]interface{}).
+                var p Product
+                err := json.Unmarshal(*hit.Source, &p)
+                if err != nil {
+                    // Deserialization failed
+                }
+
+                // Work with product
+                fmt.Printf("The new product is %s: %s\n", p.Name, p.Description)
+            }
+        } else {
+            // No hits
+            fmt.Print("Found no products\n")
+        }
+
+    // Delete the index again
+    _, err = client.DeleteIndex("products").Do()
+    if err != nil {
+        // Handle error
+        panic(err)
+    }
 
 
 

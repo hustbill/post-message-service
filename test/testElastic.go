@@ -28,15 +28,15 @@ func main() {
 	c.Domain = *host
 
 	// Index a document
-	_, err := c.Index("testindex", "user", "docid_1", nil, `{"name":"bob"}`)
+	_, err := c.Index("testindex", "ppt", "docid_1", nil, `{"name":"bob"}`)
 	exitIfErr(err)
 
 	// Index a doc using a map of values
-	_, err = c.Index("testindex", "user", "docid_2", nil, map[string]string{"name": "venkatesh"})
+	_, err = c.Index("testindex", "ppt", "docid_2", nil, map[string]string{"name": "venkatesh"})
 	exitIfErr(err)
 
 	// Index a doc using Structs
-	_, err = c.Index("testindex", "user", "docid_3", nil, MyUser{"wanda", 22})
+	_, err = c.Index("testindex", "ppt", "docid_3", nil, MyUser{"wanda", 22})
 	exitIfErr(err)
 
 	// Search Using Raw json String
@@ -45,8 +45,9 @@ func main() {
 	        "term" : { "Name" : "wanda" }
 	    }
 	}`
-	out, err := c.Search("testindex", "user", nil, searchJson)
+	out, err := c.Search("testindex", "ppt", nil, searchJson)
 	if len(out.Hits.Hits) == 1 {
+        fmt.Println("%v", out.Hits.Hits[0])
 		fmt.Println("%v", out.Hits.Hits[0].Source)
 	}
 	exitIfErr(err)

@@ -3,7 +3,10 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+    "log"
 	"net/http"
+    "os"
+    "reflect"
 
 	"../models"
     //"../elastics"
@@ -11,7 +14,7 @@ import (
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 	"github.com/julienschmidt/httprouter"
-    "github.com/olivere/elastic"
+    "gopkg.in/olivere/elastic.v2"
     
 )
 
@@ -29,7 +32,7 @@ func NewProductController(s *mgo.Session) *ProductController {
 }
 
 // Create a new Index in Elasticsearch 
-func CreateIndex() {
+func CreateIndex(product models.Product) {
 	errorlog := log.New(os.Stdout, "APP ", log.LstdFlags)
 
 	// Obtain a client. You can provide your own HTTP client here.
@@ -42,7 +45,7 @@ func CreateIndex() {
     // Use the IndexExists service to check if a specified index exists.
     exists, err := client.IndexExists("productindex").Do()
     if err != nil {
-        painc(err)
+        panic(err)
     }
     
     if !exists {
@@ -57,21 +60,29 @@ func CreateIndex() {
     }
     
     // Index a product (using JSON serialization) 
-    product1 := models.Product{Name : "peanuts", Description: "good food for afternoon"}
+  //  product1 := models.Product{Name : "peanuts", Description: "good food for afternoon"}
     put1, err := client.Index().
         Index("productindex").
         Type("text").
         Id("1").
-        BodyJson(product1).
+        BodyJson(product).
         Do()
     
         if err != nil {
             panic(err)
         }
         fmt.Printf("Indexed product %s to index %s, type %s\n", put1.Id, put1.Index, put1.Type)
+        
+        
+    	// Flush to make sure the documents got written.
+    	_, err = client.Flush().Index("productindex").Do()
+    	if err != nil {
+    		panic(err)
+    	}
+    
 }
 
-func SearchIndexWithId() {
+func SearchIndexWithId(id string) {
 	errorlog := log.New(os.Stdout, "APP ", log.LstdFlags)
 
 	// Obtain a client. You can provide your own HTTP client here.
@@ -83,77 +94,98 @@ func SearchIndexWithId() {
     
     get1, err := client.Get().
         Index("productindex").
-        Type("text").
-        Id("1").
+       // Type("text").
+        Id(id).
         Do()
     
     if err != nil {
         panic(err)
     }
     if get1.Found {
-        fmt.Printf("Got document %s in version %d from index %s , type %s\n", get1.Id, get1.Version, get1.Index, 
-            get1.Type)
+        //product = get1.(models.Product)
+        fmt.Printf("Got document %s in verion %d from index %s \n", get1.Id, get1.Version, get1.Index )
+          
     }
+
+
 }
 
-// Search with a term query 
-func SearchIndexWithTermQuery() {
-    termQuery := elasticNewTermQuery("Name", "peanuts")
-    searchResult, err := clientSearch().
-        Index("productindex").   // search in index "productindex"
-        Query(&termQuery).      // specify the query
-        Sort("Name", true).     // sort by "name" field, ascending
-        From(0).Size(10).       // take documents 0-9
-        Pretty(true).           // pretty print request and response JSON
-        Do()                    // execute
+// Search with a term query in Elasticsearch
+func SearchIndexWithTermQuery()(product  models.Product) {
+	errorlog := log.New(os.Stdout, "APP ", log.LstdFlags)
 
-    if err != nil {
-        panic(err)
-    }
+	// Obtain a client. You can provide your own HTTP client here.
+	client, err := elastic.NewClient(elastic.SetErrorLog(errorlog),  elastic.SetSniff(false))
+	if err != nil {
+		// Handle error
+		panic(err)
+	}
+  
+    // q := ""
+    // if (q != "") {  //  GET:   /v1/posts[?limit=xx&offset=xx&q=xx]    q is a search string
+    //      termQuery = elastic.NewTermQuery("name", q)
+    // }
+    //
+    
+    
+    
+    termQuery := elastic.NewTermQuery("name", "boil")
+    	searchResult, err := client.Search().
+    		Index("productindex").   // search in index "productindex"
+    		Query(&termQuery).  // specify the query
+    		Sort("name", true). // sort by "name" field, ascending
+    		From(0).Size(10).   // take documents 0-9
+    		Pretty(true).       // pretty print request and response JSON
+    		Do()                // execute
+    	if err != nil {
+    		panic(err)
+    	}
+    
+    
     
     // searchResult is of type SearchResult and returns hits, suggestions,
     // and all kinds of other information from Elasticsearch.
-    fmt.Println("Query took %d milliseconds\n", searchResult.TookInMillis)
-    
+    fmt.Printf("Query took %d milliseconds\n", searchResult.TookInMillis)
 
-    if searchResult.Hits != nil {
-        fmt.Printf("Found a total of %d products\n", searchResult.Hits.TotalHits)
+	// Each is a convenience function that iterates over hits in a search result.
+	var ttyp models.Product 
+   if searchResult.Hits != nil {
+    	// TotalHits is another convenience function that works even when something goes wrong.
+        // fmt.Printf("Found a total of %d products\n", searchResult.TotalHits())
+    	for _, item := range searchResult.Each(reflect.TypeOf(ttyp)) {
+    		t := item.(models.Product)
         
-        // Iterat through results 
-        for _, hit := range searchResult.Hits.Hits {
-            // hit.Index contains the name of the index
-            // Deserialize hit.Source into a Product 
-            // (could also be just a map[string]interface{})
-            
-            var p models.Product
-            err := json.Unmarshal(*hit.Source, &p)
-            if err != nil {
-                fmt.Println("Deserializaiton failed")
-                panic(err)
-            }
-            
-            // work with product
-            fmt.Printf("Product %s , %s\n", p.Name, p.Description)
-        }
-    } else {
+    		fmt.Printf("Product Name:  %s,  Description: %s, Link: %s\n", t.Name, t.Description, t.Permalink)
+            product = t    
+    	}
+    }  else {
         // Not hits
         fmt.Print("Found no products\n")
     }
+
+    return product
 }
 
 // GetProduct retrieves an individual post resource
 func (uc ProductController) GetProduct(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
+    fmt.Print("Get Product\n")
 	// Grab id
-	id := p.ByName("id")
+     id := p.ByName("id")
+     fmt.Println(id)
 
-	// Verify id is ObjectId, otherwise bail
-	if !bson.IsObjectIdHex(id) {
-		w.WriteHeader(404)
-		return
-	}
+  
+     // q is a search string
+     //q := p.ByName("q")
+    
+    // // Verify id is ObjectId, otherwise bail
+    // if !bson.IsObjectIdHex(id) {
+    //     w.WriteHeader(404)
+    //     return
+    // }
+
 
 	// Grab id
-	oid := bson.ObjectIdHex(id)
+    //	oid := bson.ObjectIdHex(id)
 
 	// Stub product
 	u := models.Product{}
@@ -165,10 +197,14 @@ func (uc ProductController) GetProduct(w http.ResponseWriter, r *http.Request, p
 		return
 	} */
     
-    if err := searchInElastic(); err != nil {
-		w.WriteHeader(404)
-		return
-    }
+     // Fetch product from Elasticsearch
+    // if id != "" {
+ //        u = SearchIndexWithId(id);
+ //    } else {
+ //        u = SearchIndexWithTermQuery()
+ //    }
+      u = SearchIndexWithTermQuery()
+    fmt.Println(u)
 
 	// Marshal provided interface into JSON structure
 	uj, _ := json.Marshal(u)
@@ -189,10 +225,16 @@ func (uc ProductController) CreateProduct(w http.ResponseWriter, r *http.Request
 	json.NewDecoder(r.Body).Decode(&u)
 
 	// Add an Id
-	u.Id = bson.NewObjectId()
+	//u.Id = bson.NewObjectId()
+    u.Id =  1 //p.ByName("id")
 
 	// Write the post to mongo
 	uc.session.DB("post_message_service").C("products").Insert(u)
+    
+    // Write the product to Elasticsearch
+     //product1 := models.Product{Name : "peanuts", Description: "good food for afternoon", Permalink: "www.google.com"}
+     fmt.Printf("\nInsert Product name : %s , Description: %s, link: %s\n", u.Name, u.Description, u.Permalink)
+     CreateIndex(u) 
 
 	// Marshal provided interface into JSON structure
 	uj, _ := json.Marshal(u)
